@@ -1,0 +1,22 @@
+[
+    {
+        "name": "get_weather_forecast",
+        "description": "Get weather forecast for a location to help with demand prediction. Weather impacts: Rain/Snow = Higher local rental demand (people avoid public transit), Good weather on holidays = Higher travel demand, Extreme weather = Potential supply chain issues",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "location": {
+                    "type": "string",
+                    "description": "City name or location (e.g., 'Los Angeles', 'New York')"
+                },
+                "days": {
+                    "type": "integer",
+                    "description": "Number of days to forecast (default: 7, max: 16)"
+                }
+            },
+            "required": [
+                "location"
+            ]
+        }
+    }
+]

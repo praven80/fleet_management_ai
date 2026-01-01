@@ -1,0 +1,30 @@
+default_agent: hertz_strands_runtime
+agents:
+  hertz_strands_runtime:
+    name: hertz_strands_runtime
+    entrypoint: /Users/pvsaws/Documents/Coding/Python/GitLab_Commits/Hertz/backend/strands_runtime.py
+    platform: linux/arm64
+    container_runtime: docker
+    aws:
+      execution_role: arn:aws:iam::307492694773:role/HertzStrandsAgentCoreRuntimeRole
+      execution_role_auto_create: false
+      account: '307492694773'
+      region: us-east-1
+      ecr_repository: 307492694773.dkr.ecr.us-east-1.amazonaws.com/bedrock-agentcore-hertz_strands_runtime
+      ecr_auto_create: false
+      network_configuration:
+        network_mode: PUBLIC
+      protocol_configuration:
+        server_protocol: HTTP
+      observability:
+        enabled: true
+    bedrock_agentcore:
+      agent_id: hertz_strands_runtime-w55jyCFm54
+      agent_arn: arn:aws:bedrock-agentcore:us-east-1:307492694773:runtime/hertz_strands_runtime-w55jyCFm54
+      agent_session_id: null
+    codebuild:
+      project_name: null
+      execution_role: null
+      source_bucket: null
+    authorizer_configuration: null
+    oauth_configuration: null

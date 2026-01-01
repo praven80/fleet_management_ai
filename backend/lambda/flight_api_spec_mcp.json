@@ -1,0 +1,18 @@
+[
+    {
+        "name": "get_flight_traffic",
+        "description": "Get flight arrival information for an airport to predict car rental demand. High flight arrivals indicate more travelers needing rentals.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "airport_code": {
+                    "type": "string",
+                    "description": "IATA airport code (e.g., 'LAX', 'JFK', 'ORD', 'ATL')"
+                }
+            },
+            "required": [
+                "airport_code"
+            ]
+        }
+    }
+]

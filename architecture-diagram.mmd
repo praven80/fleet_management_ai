@@ -1,0 +1,135 @@
+%% Hertz MCP Fleet Management - Architecture Diagram
+%% This file can be rendered using Mermaid.js or tools like mermaid-cli, draw.io, etc.
+
+graph TB
+    subgraph "User Interface Layer"
+        User[👤 End User]
+        ReactApp["🌐 React Web App<br/>(CloudFront + S3)<br/>- Chat Interface<br/>- Fleet Search<br/>- Cognito Auth"]
+    end
+
+    subgraph "API Layer"
+        APIGateway["🚪 API Gateway<br/>(REST API)<br/>POST /chat<br/>CORS Enabled"]
+    end
+
+    subgraph "Lambda Proxy Layer (VPC)"
+        ProxyLambda["⚡ Runtime Proxy Lambda<br/>(hertz-runtime-proxy)<br/>Python 3.12<br/>VPC + NAT Gateway<br/>Cognito Auth<br/>IAM Invocation"]
+    end
+
+    subgraph "Amazon Bedrock AgentCore Runtime"
+        Runtime["🤖 Strands Agent Runtime<br/>(Docker on ECS)<br/>Claude 3 Haiku<br/>System Prompt"]
+        
+        subgraph "Local Tools"
+            Tool1["🔧 search_vehicles_general<br/>Nationwide search"]
+            Tool2["🔧 search_fleet_by_zip<br/>ZIP code search"]
+            Tool3["🔧 get_fleet_summary<br/>Fleet statistics"]
+            Tool4["🔧 get_national_holidays<br/>Holiday calendar"]
+            Tool5["🔧 get_local_events<br/>Ticketmaster events"]
+        end
+        
+        MCPClient["🔌 MCP Client<br/>JWT Auth<br/>Streamable HTTP"]
+    end
+
+    subgraph "AgentCore Gateway"
+        Gateway["🌉 AgentCore Gateway<br/>(Managed MCP)<br/>JWT Authentication"]
+        WeatherTarget["🎯 Weather Target"]
+        FlightTarget["🎯 Flight Target"]
+    end
+
+    subgraph "Gateway Lambda Functions"
+        WeatherLambda["⚡ Weather Lambda<br/>(hertz-weather-forecast)<br/>Open-Meteo API<br/>7-16 day forecasts"]
+        FlightLambda["⚡ Flight Lambda<br/>(hertz-flight-traffic)<br/>AviationStack API<br/>Airport arrivals"]
+    end
+
+    subgraph "Data Layer"
+        DynamoDB["💾 DynamoDB<br/>hertz-fleet-inventory<br/>~1,855 vehicles<br/>10 cities<br/><br/>GSI: zip_code-index<br/>GSI: location-index"]
+    end
+
+    subgraph "Authentication"
+        CognitoPool["🔐 Cognito User Pool<br/>Username/Password<br/>JWT Tokens<br/>Test User: test-user"]
+        CognitoIdentity["🔐 Cognito Identity Pool<br/>Federated Identity<br/>AWS SDK Credentials"]
+    end
+
+    subgraph "External APIs"
+        OpenMeteo["🌤️ Open-Meteo API<br/>Weather Data<br/>Free, No Key"]
+        NagerDate["📅 Nager.Date API<br/>U.S. Holidays<br/>Free, No Key"]
+        Ticketmaster["🎫 Ticketmaster API<br/>Events & Concerts<br/>API Key Required"]
+        AviationStack["✈️ AviationStack API<br/>Flight Data<br/>API Key Required"]
+    end
+
+    subgraph "Configuration & Monitoring"
+        SSM["📋 SSM Parameter Store<br/>Gateway URLs<br/>Runtime ARNs<br/>Cognito Config<br/>API Keys"]
+        CloudWatch["📊 CloudWatch<br/>Logs & Metrics<br/>Lambda Logs<br/>Runtime Logs<br/>API Gateway Logs"]
+    end
+
+    subgraph "Infrastructure"
+        ECR["📦 ECR<br/>Docker Images<br/>Runtime Container"]
+        VPC["🔒 VPC<br/>Private Subnets<br/>NAT Gateway<br/>Security Groups"]
+    end
+
+    %% User Flow
+    User -->|HTTPS| ReactApp
+    ReactApp -->|POST /chat| APIGateway
+    APIGateway -->|Invoke| ProxyLambda
+    ProxyLambda -->|IAM Auth| Runtime
+
+    %% Runtime to Tools
+    Runtime --> Tool1
+    Runtime --> Tool2
+    Runtime --> Tool3
+    Runtime --> Tool4
+    Runtime --> Tool5
+    Runtime --> MCPClient
+
+    %% MCP Flow
+    MCPClient -->|HTTPS + JWT| Gateway
+    Gateway --> WeatherTarget
+    Gateway --> FlightTarget
+    WeatherTarget -->|Invoke| WeatherLambda
+    FlightTarget -->|Invoke| FlightLambda
+
+    %% Data Access
+    Tool1 -.->|Query| DynamoDB
+    Tool2 -.->|Query GSI| DynamoDB
+    Tool3 -.->|Query| DynamoDB
+    Tool4 -.->|HTTP| NagerDate
+    Tool5 -.->|HTTP| Ticketmaster
+    WeatherLambda -.->|HTTP| OpenMeteo
+    FlightLambda -.->|HTTP| AviationStack
+
+    %% Authentication
+    ReactApp -.->|Auth| CognitoPool
+    ReactApp -.->|Credentials| CognitoIdentity
+    ProxyLambda -.->|Get Token| CognitoPool
+    MCPClient -.->|JWT Token| Gateway
+
+    %% Infrastructure
+    ProxyLambda -.->|Runs in| VPC
+    Runtime -.->|Image from| ECR
+    
+    %% Configuration
+    ProxyLambda -.->|Read Config| SSM
+    Runtime -.->|Read Config| SSM
+    
+    %% Monitoring
+    ProxyLambda -.->|Logs| CloudWatch
+    Runtime -.->|Logs| CloudWatch
+    WeatherLambda -.->|Logs| CloudWatch
+    FlightLambda -.->|Logs| CloudWatch
+    APIGateway -.->|Logs| CloudWatch
+
+    %% Styling
+    classDef userLayer fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    classDef apiLayer fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef runtimeLayer fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef dataLayer fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef authLayer fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef externalLayer fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+    classDef infraLayer fill:#eceff1,stroke:#263238,stroke-width:2px
+
+    class User,ReactApp userLayer
+    class APIGateway,ProxyLambda apiLayer
+    class Runtime,Tool1,Tool2,Tool3,Tool4,Tool5,MCPClient,Gateway,WeatherTarget,FlightTarget,WeatherLambda,FlightLambda runtimeLayer
+    class DynamoDB dataLayer
+    class CognitoPool,CognitoIdentity authLayer
+    class OpenMeteo,NagerDate,Ticketmaster,AviationStack externalLayer
+    class SSM,CloudWatch,ECR,VPC infraLayer
